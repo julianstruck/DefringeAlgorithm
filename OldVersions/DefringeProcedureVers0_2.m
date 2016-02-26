@@ -32,7 +32,7 @@ clear;
 %% define file paths
 addpath('/Users/Julian/Documents/MIT/MatlabPrograms/MatlabFunctionsJulian')
 addpath(fullfile(pwd,'Functions'))
-raw_data_path = fullfile(pwd,'TestRawData');
+raw_data_path = fullfile(pwd,'RawData');
 processed_data_path = fullfile(pwd,'ProcessedData');
 
 
@@ -66,7 +66,24 @@ select_no_atom = ones(length(crop_region_x),length(crop_region_y));
 select_no_atom(atom_crop_x,atom_crop_y)=0;
 
 %% correct the raw absorption and reference images with their dark frames
-[OD_images_cropped,cor_abs,cor_ref] = Raw2ODseries(crop_raw_data);
+% Absorption image
+absorption = squeeze(crop_raw_data(:,:,1,:));
+    
+% No atoms reference
+reference = squeeze(crop_raw_data(:,:,2,:));
+   
+% Dark frame for absoprtion image
+dark_abs = squeeze(crop_raw_data(:,:,3,:));
+     
+% Dark frame for reference image
+dark_ref = squeeze(crop_raw_data(:,:,4,:));
+
+% subtract dark image
+cor_abs = absorption - dark_abs;
+cor_abs(cor_abs<0.1)=0.1;
+     
+cor_ref = reference - dark_ref;
+cor_ref(cor_ref<0.1)=0.1;
 
 %% Main part of the program
 
@@ -74,7 +91,7 @@ select_no_atom(atom_crop_x,atom_crop_y)=0;
 Bmatrix = BmatrixFunction( cor_ref, select_no_atom);
 
 matched_reference_vec = zeros([size(cor_ref,1),size(cor_ref,2),length(RawImgName)]);
-OD_defringed = matched_reference_vec;
+OD_image = matched_reference_vec;
 coefficient_vec = zeros(size(cor_ref,3));
 
 for i=1:length(RawImgName)
@@ -88,19 +105,11 @@ matched_reference = CreateReference( Cvector , cor_ref);
 
 matched_reference_vec(:,:,i) = matched_reference;
 coefficient_vec(:,i) = Cvector;
-OD_defringed(:,:,i) = - log( cor_abs(:,:,i) ./ matched_reference_vec(:,:,i) );
+OD_image(:,:,i) = - log( cor_abs(:,:,i) ./ matched_reference_vec(:,:,i) );
 
 end
 
-%% Save defringed OD_images as .fits
-%save('defringed_images.mat','OD_defringed')
+save('defringed_images.mat','OD_image')
 
-for i=1:length(RawImgName)
-    [pathstr,DateName,ext] = fileparts(RawImgName{i});
-    filename = [DateName,'_defringed'];
-    fitswrite(OD_defringed(:,:,i),fullfile(processed_data_path,filename))
-end
-
-%% Show one example image
-imagesc(OD_defringed(:,:,1))
+imagesc(OD_image(:,:,1))
 imagesc(squeeze(Raw2OD( crop_raw_data(:,:,:,1)) ))
