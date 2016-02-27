@@ -7,7 +7,7 @@ matched_reference = zeros(size1,size2);
 
 for i=1:length(Cvector)
     
-matched_reference = matched_reference + squeeze(Cvector(i) * ref(:,:,i));
+matched_reference = matched_reference + squeeze(Cvector(i) .* ref(:,:,i));
 
 end
 

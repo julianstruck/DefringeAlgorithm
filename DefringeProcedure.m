@@ -25,7 +25,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 clear;
-
+close all;
 
 %%% Preparatory part of the program
 
@@ -73,9 +73,15 @@ select_no_atom(atom_crop_x,atom_crop_y)=0;
 % create Bmatrix
 Bmatrix = BmatrixFunction( cor_ref, select_no_atom);
 
+% preallocate for loop
 matched_reference_vec = zeros([size(cor_ref,1),size(cor_ref,2),length(RawImgName)]);
 OD_defringed = matched_reference_vec;
 coefficient_vec = zeros(size(cor_ref,3));
+FitsArray = zeros([size(cor_ref,1),size(cor_ref,2),2,length(RawImgName)]);
+mean_square_matched = zeros([1 length(RawImgName)]);
+mean_square_original = zeros([1 length(RawImgName)]);
+
+h = waitbar(0,'Generating optimal reference images');
 
 for i=1:length(RawImgName)
 % create Dvector
@@ -90,17 +96,29 @@ matched_reference_vec(:,:,i) = matched_reference;
 coefficient_vec(:,i) = Cvector;
 OD_defringed(:,:,i) = - log( cor_abs(:,:,i) ./ matched_reference_vec(:,:,i) );
 
-end
+% quality check: compute mean square deviation for matched reference and
+% original reference image
+mean_square_matched(i) = MSD( cor_abs(:,:,i), matched_reference_vec(:,:,i), select_no_atom );
+mean_square_original(i) = MSD( cor_abs(:,:,i), cor_ref(:,:,i), select_no_atom );
 
-%% Save defringed OD_images as .fits
+% create image array for .fits file
+FitsArray(:,:,1,i) = cor_abs(:,:,i);
+FitsArray(:,:,2,i) = matched_reference_vec(:,:,i);
+
+waitbar(i/length(RawImgName))
+end
+close(h)
+
+%% Save defringed images as .fits
 %save('defringed_images.mat','OD_defringed')
 
-for i=1:length(RawImgName)
-    [pathstr,DateName,ext] = fileparts(RawImgName{i});
-    filename = [DateName,'_defringed'];
-    fitswrite(OD_defringed(:,:,i),fullfile(processed_data_path,filename))
-end
+% for i=1:length(RawImgName)
+%     [pathstr,DateName,ext] = fileparts(RawImgName{i});
+%     filename = [DateName,'_defringed'];
+%     fitswrite(FitsArray(:,:,:,i),fullfile(processed_data_path,filename))
+% end
 
 %% Show one example image
 imagesc(OD_defringed(:,:,1))
-imagesc(squeeze(Raw2OD( crop_raw_data(:,:,:,1)) ))
+%imagesc(squeeze(Raw2OD( crop_raw_data(:,:,:,1)) ))
+plot(mean_square_matched./mean_square_original)
