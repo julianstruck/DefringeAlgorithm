@@ -45,15 +45,33 @@ OD_images_unmodified = squeeze(Raw2ODseries( RawData(:,:,:,:) ));
 
 
 %% define picture frame (noatoms and atoms)
+% sum up all images to see where atoms are;
+OD_image_crop_select  = squeeze(sum(OD_images_unmodified,3))/size(RawData,4);
+figure
+imagesc(OD_image_crop_select,[-0.3 0.2])
+axis image;
 
-% If necessary crop the whole image
-OD_image_crop_select  = squeeze(sum(OD_images_unmodified,3));
-[crop_select, rect_crop] = imcrop(OD_image_crop_select);
-rect_crop=round(rect_crop);
-crop_region_y = rect_crop(1):(rect_crop(1) + rect_crop(3) - 1);
-crop_region_x = rect_crop(2):(rect_crop(2) + rect_crop(4) - 1);
-
-crop_raw_data = RawData(crop_region_x,crop_region_y,:,:);
+% If necessary crop the whole image (precrop)
+% Construct a question dialog
+choice = questdlg('Would you like to precrop the image?', ...
+	'Precrop Menu', ...
+	'Yes','No','No');
+% Handle response
+switch choice
+    case 'Yes'
+        close
+        [crop_select, rect_crop] = imcrop(OD_image_crop_select);
+        rect_crop=round(rect_crop);
+        crop_region_y = rect_crop(1):(rect_crop(1) + rect_crop(3) - 1);
+        crop_region_x = rect_crop(2):(rect_crop(2) + rect_crop(4) - 1);
+        crop_raw_data = RawData(crop_region_x,crop_region_y,:,:);
+    case 'No'
+        close
+        crop_raw_data = RawData(:,:,:,:);
+        crop_select = OD_image_crop_select;
+        crop_region_y = 1:size(crop_raw_data,1);
+        crop_region_x = 1:size(crop_raw_data,2);
+end
 
 % select region with absorption signal
 [atom_select, rect_atom] = imcrop(crop_select);
@@ -110,15 +128,17 @@ end
 close(h)
 
 %% Save defringed images as .fits
-%save('defringed_images.mat','OD_defringed')
+save('defringed_images.mat','OD_defringed')
 
-% for i=1:length(RawImgName)
-%     [pathstr,DateName,ext] = fileparts(RawImgName{i});
-%     filename = [DateName,'_defringed'];
-%     fitswrite(FitsArray(:,:,:,i),fullfile(processed_data_path,filename))
-% end
+for i=1:length(RawImgName)
+    [pathstr,DateName,ext] = fileparts(RawImgName{i});
+    filename = [DateName,'_defringed'];
+    fitswrite(FitsArray(:,:,:,i),fullfile(processed_data_path,filename))
+end
 
 %% Show one example image
-imagesc(OD_defringed(:,:,1))
+figure(1)
+imagesc(OD_defringed(:,:,1),[0 0.5])
 %imagesc(squeeze(Raw2OD( crop_raw_data(:,:,:,1)) ))
+figure(2)
 plot(mean_square_matched./mean_square_original)
